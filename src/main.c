@@ -27,12 +27,21 @@ int main(void)
 	gpio_init.GPIO_Pin = GPIO_Pin_7;
 	gpio_init.GPIO_Speed = GPIO_Speed_2MHz;
 	gpio_init.GPIO_Mode = GPIO_Mode_IN_FLOATING;
-	GPIO_Init(GPIOC, &gpio_init);
+	GPIO_Init(GPIOA, &gpio_init);
+
+	//  настраиваем LED как выход (push/pull out speed 2MHz) RM p.160 pulled up
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
+	GPIO_InitTypeDef led_init;
+		led_init.GPIO_Pin = GPIO_Pin_13;
+		led_init.GPIO_Speed = GPIO_Speed_2MHz;
+		led_init.GPIO_Mode = GPIO_Mode_Out_PP;
+	GPIO_Init(GPIOC, &led_init);
+	GPIO_WriteBit(GPIOC, GPIO_Pin_13, Bit_SET); //Set13 и выключи
 
 	TIM_TimeBaseInitTypeDef tim_timebase;
 	tim_timebase.TIM_CounterMode = TIM_CounterMode_Up;
 	tim_timebase.TIM_Prescaler = 720-1; // slowing to 50kHz
-	tim_timebase.TIM_ClockDivision = 0; //This parameter can be a value of @ref TIM_Clock_Division_CKD
+	tim_timebase.TIM_ClockDivision = TIM_CKD_DIV1; //This parameter can be a value of @ref TIM_Clock_Division_CKD
 	tim_timebase.TIM_Period = 50000; // counting to 1Hz
 	TIM_TimeBaseInit(TIM3, &tim_timebase);
 
@@ -63,13 +72,13 @@ int main(void)
 
 	for(;;)
 	{
-		if (IC2Value != 0)//(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_7))
+		if ((DutyCycle >5.9) & (DutyCycle <= 6))   //(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_7))
 		{
-			TIM_Cmd(TIM3, ENABLE);
+			GPIO_WriteBit(GPIOC, GPIO_Pin_13, Bit_RESET);
 		}
 		else
 		{
-			TIM_Cmd(TIM3, ENABLE);
+			GPIO_WriteBit(GPIOC, GPIO_Pin_13, Bit_SET); //Set13 и выключи
 		}
 	}
 } // the end of 'main' procedure
