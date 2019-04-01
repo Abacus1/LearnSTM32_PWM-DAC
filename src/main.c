@@ -23,7 +23,7 @@ void I2C1_Init(void);
 int main(void)
 {
 	I2C1_Init();
-	DAC_Init();
+//	DAC_Init();
 
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
