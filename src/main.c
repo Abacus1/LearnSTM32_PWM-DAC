@@ -19,6 +19,8 @@ __IO uint16_t DutyCycle = 0;
 __IO uint32_t Frequency = 0;
 
 void I2C1_Init(void);
+void I2C_StartTransmission(I2C_TypeDef* I2Cx, uint8_t transmissionDirection,  uint8_t slaveAddress);
+void I2C_WriteData(I2C_TypeDef* I2Cx, uint8_t data);
 
 int main(void)
 {
@@ -85,6 +87,7 @@ int main(void)
 		{
 			GPIO_WriteBit(GPIOC, GPIO_Pin_13, Bit_SET); //Set13 и выключи
 		}
+		I2C_GenerateSTOP(I2C1, ENABLE);
 	}
 } // the end of 'main' procedure
 
@@ -155,10 +158,44 @@ void I2C1_Init(void)
     I2C_InitStructure.I2C_OwnAddress1 = 0x38;
     I2C_InitStructure.I2C_Ack = I2C_Ack_Enable;
     I2C_InitStructure.I2C_AcknowledgedAddress = I2C_AcknowledgedAddress_7bit;
-    I2C_InitStructure.I2C_ClockSpeed = 100000;
+    I2C_InitStructure.I2C_ClockSpeed = 1000; // Speed 1kHz
 
     /* I2C Peripheral Enable */
     I2C_Cmd(I2C1, ENABLE);
     /* Apply I2C configuration after enabling it */
     I2C_Init(I2C1, &I2C_InitStructure);
+}
+
+void I2C_StartTransmission(I2C_TypeDef* I2Cx, uint8_t transmissionDirection,  uint8_t slaveAddress)
+{
+    while(I2C_GetFlagStatus(I2Cx, I2C_FLAG_BUSY)); // На всякий слуыай ждем, пока шина осовободится
+    I2C_GenerateSTART(I2Cx, ENABLE); // Генерируем старт - тут все понятно )
+    while(!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_MODE_SELECT)); // Ждем пока взлетит нужный флаг
+    I2C_Send7bitAddress(I2Cx, slaveAddress, transmissionDirection); // Посылаем адрес подчиненному
+
+    // А теперь у нас два варианта развития событий - в зависимости от выбранного направления обмена данными
+    if(transmissionDirection== I2C_Direction_Transmitter)
+    {
+    	while(!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED));
+    }
+    if(transmissionDirection== I2C_Direction_Receiver)
+    {
+    	while(!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_RECEIVER_MODE_SELECTED));
+    }
+}
+
+void I2C_WriteData(I2C_TypeDef* I2Cx, uint8_t data)
+{
+    // Просто вызываем готоваую функцию из SPL и ждем, пока данные улетят
+    I2C_SendData(I2Cx, data);
+    while(!I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_TRANSMITTED));
+}
+
+uint8_t I2C_ReadData(I2C_TypeDef* I2Cx)
+{
+    uint8_t data;
+    // Тут картина похожа, как только данные пришли быстренько считываем их и возвращаем
+    while( !I2C_CheckEvent(I2Cx, I2C_EVENT_MASTER_BYTE_RECEIVED) );
+    data = I2C_ReceiveData(I2Cx);
+    return data;
 }
